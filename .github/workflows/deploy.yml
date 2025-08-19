@@ -8,9 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: heroku-app 
     steps:
       - uses: actions/checkout@v3
       
@@ -24,14 +21,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Deploy to Heroku
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Configure Heroku auth
         run: |
-          curl https://cli-assets.heroku.com/install.sh | sh
           heroku git:remote -a ${{ secrets.HEROKU_APP_NAME }}
-          echo "machine api.heroku.com" > ~/.netrc
-          echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
-          echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
-          echo "machine git.heroku.com" >> ~/.netrc
-          echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
-          echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
-          git push heroku main
+          {
+            echo "machine api.heroku.com"
+            echo "  login ${{ secrets.HEROKU_EMAIL }}"
+            echo "  password ${{ secrets.HEROKU_API_KEY }}"
+            echo "machine git.heroku.com"
+            echo "  login ${{ secrets.HEROKU_EMAIL }}"
+            echo "  password ${{ secrets.HEROKU_API_KEY }}"
+          } > ~/.netrc
+
+      # Build & deploy only the heroku-app/ subtree
+      - name: Push heroku-app/ subtree to Heroku
+        run: |
+          git subtree split --prefix heroku-app -b heroku-deploy
+          git push -f heroku heroku-deploy:main
